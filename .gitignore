@@ -1,0 +1,10 @@
+.DS_Store
+.idea/
+*.iml
+.gradle/
+android/local.properties
+android/app/build/
+android/build/
+*.apk
+webhook-viewer/data/*.jsonl
+!webhook-viewer/data/.gitkeep

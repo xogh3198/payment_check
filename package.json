@@ -1,0 +1,17 @@
+{
+  "name": "tradlab-deposit-agent-poc",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "viewer": "node webhook-viewer/server.mjs",
+    "sample": "node webhook-viewer/send-sample.mjs",
+    "sample:kb": "SAMPLE_BANK=KB node webhook-viewer/send-sample.mjs",
+    "sample:hana": "SAMPLE_BANK=HANA node webhook-viewer/send-sample.mjs",
+    "sample:nh": "SAMPLE_BANK=NH node webhook-viewer/send-sample.mjs",
+    "test": "node --test webhook-viewer/test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

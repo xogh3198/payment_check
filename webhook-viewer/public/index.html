@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TradLab Deposit Webhook Viewer</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="product">TradLab Deposit Agent</p>
+        <h1>Webhook Viewer</h1>
+      </div>
+      <div class="connection" id="connectionStatus">연결 확인 중</div>
+    </header>
+
+    <main>
+      <section class="notice" aria-label="PoC 주의사항">
+        알림에서 추출한 검증용 데이터입니다. 은행 계좌 원장이나 최종 입금 증빙으로 사용하지 않습니다.
+      </section>
+
+      <section class="summary" aria-label="수신 요약">
+        <div><span>수신 이벤트</span><strong id="eventCount">0</strong></div>
+        <div><span>국민은행</span><strong id="kbCount">0</strong></div>
+        <div><span>하나은행</span><strong id="hanaCount">0</strong></div>
+        <div><span>농협은행</span><strong id="nhCount">0</strong></div>
+        <div><span>파싱 완료</span><strong id="parsedCount">0</strong></div>
+        <div><span>확인 필요</span><strong id="partialCount">0</strong></div>
+        <div><span>최근 수신</span><strong id="lastReceived">-</strong></div>
+      </section>
+
+      <section class="toolbar" aria-label="이벤트 제어">
+        <div>
+          <h2>입금 감지 이벤트</h2>
+          <p>3초마다 자동으로 갱신됩니다.</p>
+        </div>
+        <div class="toolbar-controls">
+          <label class="bank-filter" for="bankFilter">
+            <span>은행</span>
+            <select id="bankFilter">
+              <option value="ALL">전체</option>
+              <option value="KB">국민은행</option>
+              <option value="HANA">하나은행</option>
+              <option value="NH">농협은행</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button id="refreshButton" type="button">새로고침</button>
+            <button id="clearButton" class="danger" type="button">전체 삭제</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>수신 시각</th>
+              <th>은행</th>
+              <th>금액</th>
+              <th>입금자</th>
+              <th>계좌</th>
+              <th>파싱</th>
+              <th>출처</th>
+            </tr>
+          </thead>
+          <tbody id="eventRows"></tbody>
+        </table>
+        <div class="empty" id="emptyState">
+          아직 수신된 이벤트가 없습니다. 터미널에서 샘플을 보내거나 안드로이드 앱의 샘플 전송을 눌러주세요.
+        </div>
+      </section>
+
+      <section class="details" id="detailsPanel" hidden>
+        <div class="details-heading">
+          <h2>선택한 이벤트</h2>
+          <button id="closeDetailsButton" type="button" aria-label="상세 닫기">닫기</button>
+        </div>
+        <dl id="detailsList"></dl>
+        <h3>알림 원문</h3>
+        <pre id="rawText"></pre>
+        <h3>Webhook JSON</h3>
+        <pre id="rawJson"></pre>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
