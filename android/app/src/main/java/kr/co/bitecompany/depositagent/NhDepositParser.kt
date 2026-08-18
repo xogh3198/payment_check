@@ -13,8 +13,8 @@ object NhDepositParser {
         "nh.smart.nhcok",
     )
     private val amountPatterns = listOf(
-        Regex("(?:입금(?:액)?\\s*[:：]?\\s*)([0-9][0-9,]*)\\s*(?:원)?"),
-        Regex("([0-9][0-9,]*)\\s*(?:원)?\\s*입금"),
+        Regex("입금(?:액)?(?![가-힣A-Za-z0-9])[ \\t]*[:：]?[ \\t]*([0-9][0-9,]*)[ \\t]*(?:원)?"),
+        Regex("(?<![0-9,*])([0-9][0-9,]*)[ \\t]*(?:원)?[ \\t]*입금(?![가-힣A-Za-z0-9])"),
     )
     private val accountPattern = Regex(
         "(?<![0-9])(?:[0-9]{2,6}[- ]?)*[0-9]{0,6}[*]{2,}(?:[- ]?[0-9*]{2,8})*(?![0-9])",
@@ -101,7 +101,7 @@ object NhDepositParser {
             ?.groupValues
             ?.getOrNull(1)
             ?.trim()
-            ?.takeIf { isDepositorCandidate(it) }
+            ?.takeIf { isDepositorCandidate(it, allowBankMarker = true) }
             ?.let { return it }
 
         val lines = rawText.lines()
@@ -124,10 +124,10 @@ object NhDepositParser {
             .firstOrNull(::isDepositorCandidate)
     }
 
-    private fun isDepositorCandidate(value: String): Boolean {
+    private fun isDepositorCandidate(value: String, allowBankMarker: Boolean = false): Boolean {
         if (value.length !in 1..30) return false
-        if (containsNhMarker(value)) return false
-        if (value.contains("입금") || value.contains("출금") || value.contains("잔액")) return false
+        if (!allowBankMarker && containsNhMarker(value)) return false
+        if (value.matches(Regex("^(?:입금|출금|잔액)(?:\\s|[:：]|[0-9]).*"))) return false
         if (value.contains("계좌") || value.contains("거래") || value.contains("알림")) return false
         if (accountPattern.containsMatchIn(value)) return false
         if (shortDatePattern.containsMatchIn(value) || fullDatePattern.containsMatchIn(value)) return false
