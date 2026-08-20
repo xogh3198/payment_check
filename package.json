@@ -9,6 +9,7 @@
     "sample:kb": "SAMPLE_BANK=KB node webhook-viewer/send-sample.mjs",
     "sample:hana": "SAMPLE_BANK=HANA node webhook-viewer/send-sample.mjs",
     "sample:nh": "SAMPLE_BANK=NH node webhook-viewer/send-sample.mjs",
+    "sample:beepay": "SAMPLE_BANK=BEEPAY node webhook-viewer/send-sample.mjs",
     "test": "node --test webhook-viewer/test/*.test.mjs"
   },
   "engines": {

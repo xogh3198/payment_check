@@ -4,50 +4,53 @@ import { createSignature, validateDepositEvent, verifySignature } from '../lib.m
 
 const validEvent = {
   eventId: 'event-1',
-  deviceId: 'device-1',
-  source: 'android_notification',
-  bank: 'KB',
-  receivedAt: '2026-08-18T00:00:00.000Z',
-  direction: 'DEPOSIT',
-  parseStatus: 'PARSED',
+  provider: 'KB',
+  paymentMethod: 'bank_transfer',
+  eventType: 'deposit',
+  currency: 'KRW',
+  rawText: 'KB deposit notification',
+  parseStatus: 'parsed',
   amount: 30000,
-  isAuthoritative: false,
 };
 
-test('valid deposit event passes validation', () => {
+test('valid bank transfer event passes validation', () => {
   assert.deepEqual(validateDepositEvent(validEvent), []);
 });
 
-test('notification event cannot be marked authoritative', () => {
-  const errors = validateDepositEvent({ ...validEvent, isAuthoritative: true });
-  assert.ok(errors.includes('isAuthoritative must be false for notification-derived data'));
+test('BEEPAY fishery voucher event passes validation', () => {
+  assert.deepEqual(validateDepositEvent({
+    ...validEvent,
+    provider: 'BEEPAY',
+    paymentMethod: 'fishery_voucher',
+    eventType: 'payment_received',
+  }), []);
 });
 
-test('HANA deposit event passes validation', () => {
-  assert.deepEqual(validateDepositEvent({ ...validEvent, bank: 'HANA' }), []);
+test('provider and payment method mismatch is rejected', () => {
+  const errors = validateDepositEvent({ ...validEvent, provider: 'BEEPAY' });
+  assert.ok(errors.includes('BEEPAY must use fishery_voucher'));
 });
 
-test('NH deposit event passes validation', () => {
-  assert.deepEqual(validateDepositEvent({ ...validEvent, bank: 'NH' }), []);
+test('unsupported provider is rejected', () => {
+  const errors = validateDepositEvent({ ...validEvent, provider: 'UNKNOWN' });
+  assert.ok(errors.includes('provider is not supported'));
 });
 
-test('unsupported bank is rejected', () => {
-  const errors = validateDepositEvent({ ...validEvent, bank: 'UNKNOWN' });
-  assert.ok(errors.includes('bank must be KB, HANA, or NH for this PoC'));
-});
-
-test('signature is accepted only for the matching body', () => {
+test('signature is accepted only for the matching nonce and body', () => {
   const secret = 'poc-secret';
   const timestamp = '1000';
+  const nonce = '0123456789abcdef';
   const body = JSON.stringify(validEvent);
-  const signature = createSignature(secret, timestamp, body);
-  assert.deepEqual(verifySignature(secret, timestamp, body, signature, 1000), { ok: true });
-  assert.equal(verifySignature(secret, timestamp, `${body}x`, signature, 1000).ok, false);
+  const signature = createSignature(secret, timestamp, nonce, body);
+  assert.deepEqual(verifySignature(secret, timestamp, nonce, body, signature, 1000), { ok: true });
+  assert.equal(verifySignature(secret, timestamp, `${nonce}x`, body, signature, 1000).ok, false);
+  assert.equal(verifySignature(secret, timestamp, nonce, `${body}x`, signature, 1000).ok, false);
 });
 
 test('stale signature timestamp is rejected', () => {
   const secret = 'poc-secret';
+  const nonce = '0123456789abcdef';
   const body = JSON.stringify(validEvent);
-  const signature = createSignature(secret, '1000', body);
-  assert.equal(verifySignature(secret, '1000', body, signature, 1401).ok, false);
+  const signature = createSignature(secret, '1000', nonce, body);
+  assert.equal(verifySignature(secret, '1000', nonce, body, signature, 1401).ok, false);
 });
