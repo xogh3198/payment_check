@@ -1,15 +1,25 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
-export function createSignature(secret, timestamp, rawBody) {
+export function createSignature(secret, timestamp, nonce, rawBody) {
   return createHmac('sha256', secret)
-    .update(`${timestamp}.${rawBody}`)
+    .update(`${timestamp}.${nonce}.${rawBody}`)
     .digest('hex');
 }
 
-export function verifySignature(secret, timestamp, rawBody, signature, nowSeconds = Date.now() / 1000) {
+export function verifySignature(
+  secret,
+  timestamp,
+  nonce,
+  rawBody,
+  signature,
+  nowSeconds = Date.now() / 1000,
+) {
   if (!secret) return { ok: true };
-  if (!timestamp || !signature) {
+  if (!timestamp || !nonce || !signature) {
     return { ok: false, reason: 'Missing webhook signature headers' };
+  }
+  if (String(nonce).length < 16 || String(nonce).length > 128) {
+    return { ok: false, reason: 'Invalid webhook nonce' };
   }
 
   const parsedTimestamp = Number(timestamp);
@@ -17,7 +27,7 @@ export function verifySignature(secret, timestamp, rawBody, signature, nowSecond
     return { ok: false, reason: 'Webhook timestamp is outside the 5 minute window' };
   }
 
-  const expected = Buffer.from(createSignature(secret, timestamp, rawBody), 'utf8');
+  const expected = Buffer.from(createSignature(secret, timestamp, nonce, rawBody), 'utf8');
   const actual = Buffer.from(String(signature), 'utf8');
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
     return { ok: false, reason: 'Invalid webhook signature' };
@@ -31,24 +41,30 @@ export function validateDepositEvent(event) {
   }
 
   const errors = [];
-  for (const field of ['eventId', 'deviceId', 'source', 'bank', 'receivedAt', 'direction', 'parseStatus']) {
+  for (const field of ['eventId', 'provider', 'paymentMethod', 'eventType', 'currency', 'rawText', 'parseStatus']) {
     if (typeof event[field] !== 'string' || event[field].trim() === '') {
       errors.push(`${field} must be a non-empty string`);
     }
   }
   if (event.amount !== null && event.amount !== undefined) {
-    if (!Number.isSafeInteger(event.amount) || event.amount < 0) {
-      errors.push('amount must be a non-negative integer or null');
+    if (!Number.isSafeInteger(event.amount) || event.amount < 1) {
+      errors.push('amount must be a positive integer or null');
     }
   }
-  if (event.direction !== undefined && event.direction !== 'DEPOSIT') {
-    errors.push('direction must be DEPOSIT for this PoC');
+  if (!['deposit', 'payment_received', 'cancel', 'refund'].includes(event.eventType)) {
+    errors.push('eventType is not supported');
   }
-  if (event.bank !== undefined && !['KB', 'HANA', 'NH'].includes(event.bank)) {
-    errors.push('bank must be KB, HANA, or NH for this PoC');
+  if (!['KB', 'HANA', 'NH', 'BEEPAY'].includes(event.provider)) {
+    errors.push('provider is not supported');
   }
-  if (event.isAuthoritative !== false) {
-    errors.push('isAuthoritative must be false for notification-derived data');
+  if (!['bank_transfer', 'fishery_voucher'].includes(event.paymentMethod)) {
+    errors.push('paymentMethod is not supported');
+  }
+  if (event.provider === 'BEEPAY' && event.paymentMethod !== 'fishery_voucher') {
+    errors.push('BEEPAY must use fishery_voucher');
+  }
+  if (event.provider !== 'BEEPAY' && event.paymentMethod !== 'bank_transfer') {
+    errors.push('bank providers must use bank_transfer');
   }
   return errors;
 }

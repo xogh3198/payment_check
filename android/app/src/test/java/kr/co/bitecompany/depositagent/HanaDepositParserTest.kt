@@ -25,11 +25,11 @@ class HanaDepositParserTest {
         )
 
         assertNotNull(event)
-        assertEquals("HANA", event?.bank)
+        assertEquals("HANA", event?.provider)
         assertEquals(30_000L, event?.amount)
-        assertEquals("이태호4821", event?.depositorName)
+        assertEquals("이태호4821", event?.payerName)
         assertEquals("123-9100-****", event?.accountMasked)
-        assertEquals("PARSED", event?.parseStatus)
+        assertEquals("parsed", event?.parseStatus)
     }
 
     @Test
@@ -49,9 +49,9 @@ class HanaDepositParserTest {
 
         assertNotNull(event)
         assertEquals(50_000L, event?.amount)
-        assertEquals("김하나", event?.depositorName)
+        assertEquals("김하나", event?.payerName)
         assertEquals("123456**7890", event?.accountMasked)
-        assertEquals("PARSED", event?.parseStatus)
+        assertEquals("parsed", event?.parseStatus)
     }
 
     @Test
@@ -71,7 +71,7 @@ class HanaDepositParserTest {
             deviceId = "device-1",
         )
 
-        assertEquals("HANA", event?.bank)
+        assertEquals("HANA", event?.provider)
     }
 
     @Test
@@ -84,8 +84,8 @@ class HanaDepositParserTest {
             deviceId = "device-1",
         )
 
-        assertEquals("HANA", event?.bank)
+        assertEquals("HANA", event?.provider)
         assertEquals(10_000L, event?.amount)
-        assertEquals("테스트입금자", event?.depositorName)
+        assertEquals("테스트입금자", event?.payerName)
     }
 }

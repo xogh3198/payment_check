@@ -1,52 +1,63 @@
-# Webhook 계약
+# Payment Agent API 계약
 
-## Endpoint
+## 등록
 
-POST /webhook/deposits
+POST /api/v1/payment-agents/enroll
 
-Content-Type: application/json
+요청:
 
-선택적 서명 헤더:
+    {
+      "enrollmentToken": "one-time-token",
+      "installationId": "stable-installation-id",
+      "appVersion": "1.0.0"
+    }
+
+응답의 agentSecret은 등록 시 한 번만 반환되며 Android Keystore로 암호화해 저장합니다.
+
+## 서명
+
+이벤트와 heartbeat 요청에는 다음 헤더를 포함합니다.
 
 - X-Deposit-Agent-Id
 - X-Deposit-Agent-Timestamp
+- X-Deposit-Agent-Nonce
 - X-Deposit-Agent-Signature
 
-서명 원문은 timestamp + 점 + 요청 JSON 원문이며 HMAC-SHA256 hex 형식을 사용합니다.
+서명 원문:
 
-## Payload
+    timestamp + "." + nonce + "." + rawJsonBody
+
+서명 알고리즘은 agentSecret을 키로 사용하는 HMAC-SHA256 hex입니다. timestamp 허용 오차는 기본 5분입니다.
+
+## 이벤트
+
+POST /api/v1/payment-agents/events
 
 주요 필드:
 
-- eventId: 중복 방지 식별자
-- deviceId: Agent 설치 기기 식별자
-- source: android_notification
-- bank: KB, HANA 또는 NH
-- packageName: 알림을 게시한 앱 패키지
-- receivedAt: Agent가 감지한 시각
-- transactionAt: 알림 본문에서 해석한 거래 시각
-- accountMasked: 마스킹된 계좌 번호
-- depositorName: 입금자명
+- eventId: 알림 중복 방지 ID
+- provider: KB, HANA, NH, BEEPAY
+- paymentMethod: bank_transfer, fishery_voucher
+- eventType: deposit, payment_received, cancel, refund
 - amount: 원 단위 정수
-- direction: DEPOSIT
-- parseStatus: PARSED 또는 PARTIAL
-- rawText: 파싱에 사용한 알림 원문
-- isAuthoritative: 항상 false
+- transactionAt: ISO 8601 거래 시각
+- payerName: 송금 구매자명 또는 상품권 결제자명
+- accountMasked: 마스킹된 수취 계좌
+- packageName, notificationTitle, rawText, postedAt
+- parseStatus: parsed, partial
 
-## Response
+BEEPAY는 fishery_voucher만 사용할 수 있으며 은행 제공자는 bank_transfer만 사용합니다.
 
-- 202: 신규 이벤트 저장
-- 200: 이미 저장된 eventId
-- 401: 서명 누락 또는 불일치
-- 422: 필수 필드 또는 데이터 형식 오류
+## Heartbeat
 
-## 향후 TradLab 연결 시 권장 상태
+POST /api/v1/payment-agents/heartbeat
 
-- detected: 알림 감지
-- matched: 주문 후보와 자동 매칭
-- ambiguous: 여러 주문과 일치해 확인 필요
-- confirmed: 판매자가 입금 확인
-- rejected: 잘못된 매칭
-- reconciled: 공식 거래내역과 사후 대조 완료
+요청:
 
-알림 수신만으로 confirmed 또는 reconciled 상태를 만들지 않습니다.
+    {
+      "notificationAccessEnabled": true,
+      "batteryOptimizationIgnored": true,
+      "appVersion": "1.0.0"
+    }
+
+WorkManager가 15분마다 전송하며 Dashboard에서 단말 장애 판단에 사용합니다.

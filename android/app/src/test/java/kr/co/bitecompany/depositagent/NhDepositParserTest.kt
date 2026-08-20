@@ -25,11 +25,11 @@ class NhDepositParserTest {
         )
 
         assertNotNull(event)
-        assertEquals("NH", event?.bank)
+        assertEquals("NH", event?.provider)
         assertEquals(30_000L, event?.amount)
-        assertEquals("이태호4821", event?.depositorName)
+        assertEquals("이태호4821", event?.payerName)
         assertEquals("302-****-1234-**", event?.accountMasked)
-        assertEquals("PARSED", event?.parseStatus)
+        assertEquals("parsed", event?.parseStatus)
     }
 
     @Test
@@ -49,7 +49,7 @@ class NhDepositParserTest {
 
         assertNotNull(event)
         assertEquals(50_000L, event?.amount)
-        assertEquals("김농협", event?.depositorName)
+        assertEquals("김농협", event?.payerName)
         assertEquals("123456**7890", event?.accountMasked)
     }
 
@@ -71,8 +71,8 @@ class NhDepositParserTest {
             deviceId = "device-1",
         )
 
-        assertEquals("NH", allOneEvent?.bank)
-        assertEquals("NH", cokEvent?.bank)
+        assertEquals("NH", allOneEvent?.provider)
+        assertEquals("NH", cokEvent?.provider)
     }
 
     @Test

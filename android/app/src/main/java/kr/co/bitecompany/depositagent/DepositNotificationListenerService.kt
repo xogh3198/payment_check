@@ -24,16 +24,16 @@ class DepositNotificationListenerService : NotificationListenerService() {
             title = title,
             body = body,
             postedAt = statusBarNotification.postTime,
-            deviceId = preferences.deviceId,
+            deviceId = preferences.installationId,
         ) ?: return
 
         val store = EventStore(applicationContext)
         if (!store.add(event)) return
 
         sendBroadcast(
-            android.content.Intent(WebhookSender.ACTION_EVENTS_CHANGED)
+            android.content.Intent(AgentWorkScheduler.ACTION_EVENTS_CHANGED)
                 .setPackage(packageName),
         )
-        WebhookSender.send(applicationContext, event)
+        AgentWorkScheduler.enqueueEvent(applicationContext, event.id)
     }
 }

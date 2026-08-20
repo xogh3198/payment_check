@@ -4,7 +4,7 @@ import android.content.Context
 import org.json.JSONArray
 
 class EventStore(context: Context) {
-    private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    private val storage = SecureStorage(context, PREFERENCES_NAME, KEYSTORE_ALIAS)
 
     @Synchronized
     fun add(event: DepositEvent): Boolean {
@@ -17,7 +17,7 @@ class EventStore(context: Context) {
 
     @Synchronized
     fun all(): List<DepositEvent> {
-        val raw = preferences.getString(KEY_EVENTS, "[]") ?: "[]"
+        val raw = storage.getString(KEY_EVENTS) ?: "[]"
         return runCatching {
             val array = JSONArray(raw)
             buildList {
@@ -50,17 +50,24 @@ class EventStore(context: Context) {
 
     @Synchronized
     fun clear() {
-        preferences.edit().putString(KEY_EVENTS, "[]").apply()
+        storage.putString(KEY_EVENTS, "[]")
     }
+
+    @Synchronized
+    fun find(eventId: String): DepositEvent? = all().firstOrNull { it.id == eventId }
+
+    @Synchronized
+    fun pending(): List<DepositEvent> = all().filter { it.deliveryStatus != "DELIVERED" }
 
     private fun persist(events: List<DepositEvent>) {
         val array = JSONArray()
         events.forEach { array.put(it.toStorageJson()) }
-        preferences.edit().putString(KEY_EVENTS, array.toString()).commit()
+        storage.putString(KEY_EVENTS, array.toString())
     }
 
     companion object {
         private const val PREFERENCES_NAME = "deposit_agent_events"
+        private const val KEYSTORE_ALIAS = "marketbite_payment_agent_events"
         private const val KEY_EVENTS = "events"
         private const val MAX_EVENTS = 100
     }

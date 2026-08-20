@@ -8,7 +8,8 @@ object DepositNotificationParser {
         postedAt: Long,
         deviceId: String,
     ): DepositEvent? {
-        return KbDepositParser.parse(packageName, title, body, postedAt, deviceId)
+        return BeepayNotificationParser.parse(packageName, title, body, postedAt, deviceId)
+            ?: KbDepositParser.parse(packageName, title, body, postedAt, deviceId)
             ?: HanaDepositParser.parse(packageName, title, body, postedAt, deviceId)
             ?: NhDepositParser.parse(packageName, title, body, postedAt, deviceId)
     }

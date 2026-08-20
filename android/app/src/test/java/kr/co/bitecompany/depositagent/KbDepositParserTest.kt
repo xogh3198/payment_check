@@ -26,10 +26,10 @@ class KbDepositParserTest {
 
         assertNotNull(event)
         assertEquals(30_000L, event?.amount)
-        assertEquals("이태호4821", event?.depositorName)
+        assertEquals("이태호4821", event?.payerName)
         assertEquals("498125****8895", event?.accountMasked)
-        assertEquals("PARSED", event?.parseStatus)
-        assertEquals(false, event?.toWebhookJson()?.getBoolean("isAuthoritative"))
+        assertEquals("parsed", event?.parseStatus)
+        assertEquals("bank_transfer", event?.toWebhookJson()?.getString("paymentMethod"))
     }
 
     @Test
