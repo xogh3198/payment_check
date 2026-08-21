@@ -21,6 +21,10 @@ Agent는 계좌 비밀번호를 저장하거나 은행 계좌 원장을 조회�
 4. 서명 키와 최근 이벤트는 Android Keystore 기반 AES-GCM으로 암호화해 저장합니다.
 5. 알림 접근 권한과 백그라운드 실행 상태는 15분마다 Seller API에 보고합니다.
 
+개발 테스트 서버:
+
+https://dev-seller-api.marketbite.co.kr
+
 운영 기본 서버:
 
 https://seller-api.marketbite.co.kr
@@ -68,6 +72,10 @@ http://localhost:8787
 ## 배포
 
 main 브랜치와 PR에서는 테스트 및 디버그 APK를 생성합니다. v로 시작하는 태그는 GitHub Actions의 서명 시크릿을 사용해 설치용 APK와 Play Console용 AAB를 생성합니다.
+
+개발 테스트 APK는 GitHub Actions의 payment-check-apk 아티팩트에서 받을 수 있습니다. 로그인 없이 장기간 사용할 링크가 필요하면 서명 시크릿을 등록한 뒤 v로 시작하는 태그를 생성하고 아래 고정 주소를 사용합니다.
+
+https://github.com/xogh3198/payment_check/releases/latest/download/payment-check.apk
 
 필요한 GitHub Actions Secrets:
 
