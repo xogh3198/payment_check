@@ -1,12 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import { createSignature } from './lib.mjs';
 
-const url = process.env.WEBHOOK_URL || 'http://localhost:8787/webhook/deposits';
-const secret = process.env.WEBHOOK_SECRET || '';
+const url = process.env.WEBHOOK_URL || 'http://localhost:8787/api/v1/payment-agents/events';
+const secret = process.env.AGENT_SECRET || 'local-agent-secret-change-before-sharing';
+const agentId = process.env.AGENT_ID || 'agent_local_viewer';
 const requestedBank = String(process.env.SAMPLE_BANK || 'KB').toUpperCase();
-const bank = ['KB', 'HANA', 'NH'].includes(requestedBank) ? requestedBank : 'KB';
+const bank = ['KB', 'HANA', 'NH', 'BEEPAY'].includes(requestedBank) ? requestedBank : 'KB';
 const timestamp = Math.floor(Date.now() / 1000).toString();
+const nonce = randomUUID().replaceAll('-', '');
 const bankSample = {
+  BEEPAY: {
+      notificationTitle: '비플페이 결제 완료',
+      rawText: '수산대전상품권 결제완료\n결제금액: 30,000원\n결제자: 이태호4821',
+      accountMasked: null,
+  },
   HANA: {
       notificationTitle: '하나원큐 입출금 알림',
       rawText: '[하나은행] 08/18 14:31\n123-9100-****\n입금 30,000원\n이태호4821\n잔액 120,000원',
@@ -25,32 +32,28 @@ const bankSample = {
 }[bank];
 const event = {
   eventId: randomUUID(),
-  deviceId: 'node-sample-device',
-  source: 'manual_sample',
-  bank,
+  provider: bank,
+  paymentMethod: bank === 'BEEPAY' ? 'fishery_voucher' : 'bank_transfer',
+  eventType: bank === 'BEEPAY' ? 'payment_received' : 'deposit',
   packageName: 'poc.sample',
   notificationTitle: bankSample.notificationTitle,
   rawText: bankSample.rawText,
   postedAt: Date.now(),
-  receivedAt: new Date().toISOString(),
   transactionAt: new Date().toISOString(),
   accountMasked: bankSample.accountMasked,
-  depositorName: '이태호4821',
+  payerName: '이태호4821',
   amount: 30000,
   currency: 'KRW',
-  direction: 'DEPOSIT',
-  parseStatus: 'PARSED',
-  isAuthoritative: false,
+  parseStatus: 'parsed',
 };
 const rawBody = JSON.stringify(event);
 const headers = {
   'Content-Type': 'application/json; charset=utf-8',
-  'X-Deposit-Agent-Id': event.deviceId,
+  'X-Deposit-Agent-Id': agentId,
   'X-Deposit-Agent-Timestamp': timestamp,
+  'X-Deposit-Agent-Nonce': nonce,
+  'X-Deposit-Agent-Signature': createSignature(secret, timestamp, nonce, rawBody),
 };
-if (secret) {
-  headers['X-Deposit-Agent-Signature'] = createSignature(secret, timestamp, rawBody);
-}
 
 const response = await fetch(url, { method: 'POST', headers, body: rawBody });
 console.log(`${bank} ${response.status} ${await response.text()}`);

@@ -10,7 +10,9 @@ const eventFile = path.join(dataDirectory, 'events.jsonl');
 const publicDirectory = path.join(currentDirectory, 'public');
 const port = Number(process.env.PORT || 8787);
 const host = process.env.HOST || '0.0.0.0';
-const secret = process.env.WEBHOOK_SECRET || '';
+const enrollmentToken = process.env.ENROLLMENT_TOKEN || 'local-enrollment-token';
+const agentId = process.env.AGENT_ID || 'agent_local_viewer';
+const agentSecret = process.env.AGENT_SECRET || 'local-agent-secret-change-before-sharing';
 const maxBodyBytes = 64 * 1024;
 
 await mkdir(dataDirectory, { recursive: true });
@@ -30,7 +32,12 @@ const server = http.createServer(async (request, response) => {
       return sendFile(response, path.join(publicDirectory, 'styles.css'), 'text/css; charset=utf-8');
     }
     if (request.method === 'GET' && url.pathname === '/health') {
-      return sendJson(response, 200, { status: 'ok', events: events.length, signatureRequired: Boolean(secret) });
+      return sendJson(response, 200, {
+        status: 'ok',
+        events: events.length,
+        signatureRequired: true,
+        enrollmentToken,
+      });
     }
     if (request.method === 'GET' && url.pathname === '/api/events') {
       return sendJson(response, 200, { events });
@@ -40,11 +47,36 @@ const server = http.createServer(async (request, response) => {
       await writeFile(eventFile, '', 'utf8');
       return sendJson(response, 200, { cleared: true });
     }
-    if (request.method === 'POST' && url.pathname === '/webhook/deposits') {
+    if (request.method === 'POST' && url.pathname === '/api/v1/payment-agents/enroll') {
       const rawBody = await readBody(request, maxBodyBytes);
+      let input;
+      try {
+        input = JSON.parse(rawBody);
+      } catch {
+        return sendJson(response, 400, { message: 'Request body is not valid JSON' });
+      }
+      if (input.enrollmentToken !== enrollmentToken || !input.installationId) {
+        return sendJson(response, 401, { message: 'Invalid local enrollment token' });
+      }
+      return sendJson(response, 200, {
+        agentId,
+        agentSecret,
+        eventPath: '/api/v1/payment-agents/events',
+        heartbeatPath: '/api/v1/payment-agents/heartbeat',
+      });
+    }
+    if (
+      request.method === 'POST' &&
+      ['/api/v1/payment-agents/events', '/api/v1/payment-agents/heartbeat'].includes(url.pathname)
+    ) {
+      const rawBody = await readBody(request, maxBodyBytes);
+      if (request.headers['x-deposit-agent-id'] !== agentId) {
+        return sendJson(response, 401, { message: 'Unknown local agent' });
+      }
       const signatureResult = verifySignature(
-        secret,
+        agentSecret,
         request.headers['x-deposit-agent-timestamp'],
+        request.headers['x-deposit-agent-nonce'],
         rawBody,
         request.headers['x-deposit-agent-signature'],
       );
@@ -57,6 +89,10 @@ const server = http.createServer(async (request, response) => {
         event = JSON.parse(rawBody);
       } catch {
         return sendJson(response, 400, { message: 'Request body is not valid JSON' });
+      }
+
+      if (url.pathname.endsWith('/heartbeat')) {
+        return sendJson(response, 200, { ok: true, serverTime: new Date().toISOString() });
       }
 
       const validationErrors = validateDepositEvent(event);
@@ -75,7 +111,7 @@ const server = http.createServer(async (request, response) => {
       events = [storedEvent, ...events].slice(0, 500);
       await appendFile(eventFile, `${JSON.stringify(storedEvent)}\n`, 'utf8');
       console.log(
-        `[deposit] ${storedEvent.bank} ${storedEvent.eventId} ${storedEvent.depositorName || '-'} ${storedEvent.amount || '-'} KRW`,
+        `[payment] ${storedEvent.provider} ${storedEvent.eventId} ${storedEvent.payerName || '-'} ${storedEvent.amount || '-'} KRW`,
       );
       return sendJson(response, 202, { accepted: true, duplicate: false, eventId: event.eventId });
     }
@@ -89,8 +125,9 @@ const server = http.createServer(async (request, response) => {
 
 server.listen(port, host, () => {
   console.log(`TradLab Deposit Webhook Viewer: http://localhost:${port}`);
-  console.log(`Webhook endpoint: http://<this-computer-ip>:${port}/webhook/deposits`);
-  console.log(`Signature verification: ${secret ? 'enabled' : 'disabled (PoC only)'}`);
+  console.log(`Agent server URL: http://<this-computer-ip>:${port}`);
+  console.log(`Local enrollment token: ${enrollmentToken}`);
+  console.log('Signature verification: enabled');
 });
 
 async function loadEvents() {

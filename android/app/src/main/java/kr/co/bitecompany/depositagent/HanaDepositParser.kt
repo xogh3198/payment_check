@@ -35,6 +35,7 @@ object HanaDepositParser {
         title: String?,
         body: String,
         postedAt: Long,
+        @Suppress("UNUSED_PARAMETER")
         deviceId: String,
     ): DepositEvent? {
         val cleanTitle = title?.trim()?.takeIf { it.isNotBlank() }
@@ -50,13 +51,17 @@ object HanaDepositParser {
         val accountMasked = accountPattern.find(rawText)?.value
         val transactionAt = parseTransactionAt(rawText, postedAt)
         val depositorName = findDepositorName(rawText)
-        val parseStatus = if (amount != null && depositorName != null) "PARSED" else "PARTIAL"
+        val parseStatus = if (amount != null && depositorName != null && transactionAt != null) {
+            "parsed"
+        } else {
+            "partial"
+        }
 
         return DepositEvent(
             id = sha256("$packageName|$postedAt|$rawText"),
-            deviceId = deviceId,
-            source = "android_notification",
-            bank = "HANA",
+            provider = "HANA",
+            paymentMethod = "bank_transfer",
+            eventType = "deposit",
             packageName = packageName,
             notificationTitle = cleanTitle,
             rawText = rawText,
@@ -64,9 +69,8 @@ object HanaDepositParser {
             receivedAt = Instant.now().toString(),
             transactionAt = transactionAt,
             accountMasked = accountMasked,
-            depositorName = depositorName,
+            payerName = depositorName,
             amount = amount,
-            direction = "DEPOSIT",
             parseStatus = parseStatus,
         )
     }
@@ -146,7 +150,8 @@ object HanaDepositParser {
             )
         }
 
-        val shortDate = shortDatePattern.find(rawText) ?: return null
+        val shortDate = shortDatePattern.find(rawText)
+            ?: return Instant.ofEpochMilli(postedAt).toString()
         val month = shortDate.groupValues[1].toIntOrNull() ?: return null
         val day = shortDate.groupValues[2].toIntOrNull() ?: return null
         val hour = shortDate.groupValues[3].toIntOrNull() ?: return null
@@ -158,7 +163,7 @@ object HanaDepositParser {
                 candidate = candidate.minusYears(1)
             }
             candidate.atZone(zone).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
-        }.getOrNull()
+        }.getOrNull() ?: Instant.ofEpochMilli(postedAt).toString()
     }
 
     private fun formatDateTime(

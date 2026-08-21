@@ -54,11 +54,12 @@ async function clearEvents() {
 }
 
 function render() {
-  const parsed = events.filter((event) => event.parseStatus === 'PARSED').length;
+  const parsed = events.filter((event) => event.parseStatus === 'parsed').length;
   document.querySelector('#eventCount').textContent = String(events.length);
-  document.querySelector('#kbCount').textContent = String(events.filter((event) => event.bank === 'KB').length);
-  document.querySelector('#hanaCount').textContent = String(events.filter((event) => event.bank === 'HANA').length);
-  document.querySelector('#nhCount').textContent = String(events.filter((event) => event.bank === 'NH').length);
+  document.querySelector('#kbCount').textContent = String(events.filter((event) => event.provider === 'KB').length);
+  document.querySelector('#hanaCount').textContent = String(events.filter((event) => event.provider === 'HANA').length);
+  document.querySelector('#nhCount').textContent = String(events.filter((event) => event.provider === 'NH').length);
+  document.querySelector('#beepayCount').textContent = String(events.filter((event) => event.provider === 'BEEPAY').length);
   document.querySelector('#parsedCount').textContent = String(parsed);
   document.querySelector('#partialCount').textContent = String(events.length - parsed);
   document.querySelector('#lastReceived').textContent = events[0]
@@ -88,12 +89,12 @@ function renderRows() {
     });
     row.append(
       cell(formatDate(event.serverReceivedAt)),
-      bankCell(event.bank),
+      bankCell(event.provider),
       cell(formatAmount(event.amount)),
-      cell(event.depositorName || '확인 필요'),
+      cell(event.payerName || '확인 필요'),
       cell(event.accountMasked || '-'),
       statusCell(event.parseStatus),
-      cell(event.source || '-'),
+      cell(event.paymentMethod === 'fishery_voucher' ? '수산상품권' : '계좌이체'),
     );
     return row;
   }));
@@ -103,12 +104,11 @@ function renderDetails(event) {
   detailsPanel.hidden = false;
   const entries = [
     ['이벤트 ID', event.eventId],
-    ['기기 ID', event.deviceId],
-    ['은행', `${bankLabel(event.bank)} (${event.bank || '-'})`],
-    ['입금자', event.depositorName || '확인 필요'],
+    ['제공자', `${bankLabel(event.provider)} (${event.provider || '-'})`],
+    ['결제자', event.payerName || '확인 필요'],
     ['금액', formatAmount(event.amount)],
     ['거래 시각', formatDate(event.transactionAt)],
-    ['단말 수신 시각', formatDate(event.receivedAt)],
+    ['알림 게시 시각', formatDate(event.postedAt)],
     ['서버 수신 시각', formatDate(event.serverReceivedAt)],
     ['알림 패키지', event.packageName || '-'],
   ];
@@ -126,7 +126,7 @@ function renderDetails(event) {
 
 function filteredEvents() {
   if (bankFilter.value === 'ALL') return events;
-  return events.filter((event) => event.bank === bankFilter.value);
+  return events.filter((event) => event.provider === bankFilter.value);
 }
 
 function cell(value) {
@@ -138,8 +138,8 @@ function cell(value) {
 function statusCell(status) {
   const tableCell = document.createElement('td');
   const badge = document.createElement('span');
-  badge.className = `status ${status === 'PARSED' ? '' : 'partial'}`.trim();
-  badge.textContent = status === 'PARSED' ? '완료' : '확인 필요';
+  badge.className = `status ${status === 'parsed' ? '' : 'partial'}`.trim();
+  badge.textContent = status === 'parsed' ? '완료' : '확인 필요';
   tableCell.append(badge);
   return tableCell;
 }
@@ -156,6 +156,7 @@ function bankCell(bank) {
 function bankClass(bank) {
   if (bank === 'HANA') return 'hana';
   if (bank === 'NH') return 'nh';
+  if (bank === 'BEEPAY') return 'hana';
   return 'kb';
 }
 
@@ -163,6 +164,7 @@ function bankLabel(bank) {
   if (bank === 'KB') return '국민은행';
   if (bank === 'HANA') return '하나은행';
   if (bank === 'NH') return '농협은행';
+  if (bank === 'BEEPAY') return '비플페이';
   if (bank === 'ALL') return '선택한 은행의';
   return bank || '알 수 없는 은행';
 }

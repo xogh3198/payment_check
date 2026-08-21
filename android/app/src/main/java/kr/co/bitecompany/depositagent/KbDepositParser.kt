@@ -17,6 +17,7 @@ object KbDepositParser {
         title: String?,
         body: String,
         postedAt: Long,
+        @Suppress("UNUSED_PARAMETER")
         deviceId: String,
     ): DepositEvent? {
         val cleanTitle = title?.trim()?.takeIf { it.isNotBlank() }
@@ -39,14 +40,18 @@ object KbDepositParser {
         val accountMasked = accountPattern.find(rawText)?.value
         val transactionAt = parseTransactionAt(rawText, postedAt)
         val depositorName = findDepositorName(rawText)
-        val parseStatus = if (amount != null && depositorName != null) "PARSED" else "PARTIAL"
+        val parseStatus = if (amount != null && depositorName != null && transactionAt != null) {
+            "parsed"
+        } else {
+            "partial"
+        }
         val receivedAt = Instant.now().toString()
 
         return DepositEvent(
             id = sha256("$packageName|$postedAt|$rawText"),
-            deviceId = deviceId,
-            source = "android_notification",
-            bank = "KB",
+            provider = "KB",
+            paymentMethod = "bank_transfer",
+            eventType = "deposit",
             packageName = packageName,
             notificationTitle = cleanTitle,
             rawText = rawText,
@@ -54,9 +59,8 @@ object KbDepositParser {
             receivedAt = receivedAt,
             transactionAt = transactionAt,
             accountMasked = accountMasked,
-            depositorName = depositorName,
+            payerName = depositorName,
             amount = amount,
-            direction = "DEPOSIT",
             parseStatus = parseStatus,
         )
     }
@@ -81,7 +85,7 @@ object KbDepositParser {
     }
 
     private fun parseTransactionAt(rawText: String, postedAt: Long): String? {
-        val match = datePattern.find(rawText) ?: return null
+        val match = datePattern.find(rawText) ?: return Instant.ofEpochMilli(postedAt).toString()
         val month = match.groupValues[1].toIntOrNull() ?: return null
         val day = match.groupValues[2].toIntOrNull() ?: return null
         val hour = match.groupValues[3].toIntOrNull() ?: return null
@@ -95,7 +99,7 @@ object KbDepositParser {
                 candidate = candidate.minusYears(1)
             }
             candidate.atZone(zone).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)
-        }.getOrNull()
+        }.getOrNull() ?: Instant.ofEpochMilli(postedAt).toString()
     }
 
     private fun sha256(value: String): String {
